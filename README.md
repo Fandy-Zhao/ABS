@@ -73,8 +73,11 @@ Please read through the whole README.md before cloning the repo.
 
    for go1, in `legged_gym/legged_gym`,
     ```text
-   # agile policy
-   python scripts/train.py --task=go1_pos_rough --max_iterations=4000 
+   # agile policy,if you want to see the training process, remove "--headless"
+   python scripts/train.py --task=go1_pos_rough --max_iterations=700 --headless
+
+   #search the training process in tensorboard, open tensorboard in browser
+   tensorboard --logdir=ABS/training/legged_gym/legged_gym/logs
    
    # agile policy, lagrangian ver
    python scripts/train.py --task=go1_pos_rough_ppo_lagrangian --max_iterations=4000
