@@ -285,8 +285,8 @@ def play(args):
     total_timeout_time = 0
     # ======= metrics end =======
 
-    
-    for i in range(300*int(env.max_episode_length)):
+    #决定迭代次数
+    for i in range(100*int(env.max_episode_length)):
         current_recovery_status = torch.zeros(env.num_envs).to(env.device).bool()
         where_recovery = torch.zeros(env.num_envs).to(env.device).bool()
         if i% 1000==0 and train_ra:

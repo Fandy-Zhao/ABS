@@ -149,7 +149,7 @@ class Go1PosRoughCfg( LeggedRobotPosCfg ):
             raycolor = (0,0.5,0.5)
         
         class depth_cam:
-            enable = False
+            enable = True
             resolution = [1280//8,720//8]
             x = 0.0
             y = 0
