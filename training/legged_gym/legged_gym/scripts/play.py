@@ -27,7 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
-
+  
+  
+  
+  
 from legged_gym import LEGGED_GYM_ROOT_DIR
 import os
 import time
