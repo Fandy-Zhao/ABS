@@ -48,6 +48,7 @@ from legged_gym.utils.math import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_fl
 from legged_gym.utils.helpers import class_to_dict
 from .legged_robot_config import LeggedRobotCfg
 
+#定义四足机器人的基类，包括机器人初始化、状态更新、奖励计算等功能。
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless):
         """ Parses the provided config file,
@@ -72,11 +73,20 @@ class LeggedRobot(BaseTask):
 
         if not self.headless:
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
+        #二次开发的变量定义
         self._init_buffers()
         self._prepare_reward_function()
         self.init_done = True
         self.do_reset = True
 
+    '''
+    这个方法是环境的主要接口，用于接收智能体的动作并推进仿真一步。它执行以下操作：
+    处理动作并将其转换为物理仿真可以使用的格式。
+    更新仿真环境，post_physics_step应用动作并计算新的状态。
+    post_physics_step调用 compute_observations 方法，该方法计算新的观测值。
+    post_physics_step调用 compute_reward 方法，该方法计算奖励值。
+    检查是否需要终止当前仿真步。
+    '''
     def step(self, actions):
         """ Apply actions, simulate, call self.post_physics_step()
 
@@ -143,6 +153,10 @@ class LeggedRobot(BaseTask):
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self._draw_debug_vis()
 
+    '''
+    判断当前时间步是否超过了预设的最大时间步 self.max_episode_length。如果超过，则该环境的仿真步数达到上限，需要终止。它综合了接触力、姿态、高度和超时等条件，任何一个条件触发，都会导致该环境的重置。 避免2real时做出危险的行为，重置后会给一个惩罚
+    这些函数在 LeggedGym 的环境创建和训练过程中扮演着重要角色。它们通过对机器人模型的刚体形状、自由度和刚体属性进行处理和修改，确保了仿真环境的准确性和灵活性。可以根据具体的仿真需求，通过这些函数对机器人模型进行定制化调整。
+    '''
     def check_termination(self):
         """ Check if environments need to be reset
         """
@@ -226,6 +240,12 @@ class LeggedRobot(BaseTask):
         ...
         
 
+    '''
+    这个方法计算当前环境状态的观测值，这些观测值将被提供给智能体作为输入。它执行以下操作：
+    从环境中提取相关状态信息，如机器人关节的位置、速度、角速度等。
+    根据配置文件中的参数选择和处理这些状态信息，形成观测向量。
+    返回观测向量，这些观测值将被用于训练或测试智能体。
+    '''
     def compute_observations(self):
         """ Computes observations
         """
@@ -374,6 +394,12 @@ class LeggedRobot(BaseTask):
         # set small commands to zero
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
+    '''
+    这个方法根据智能体的动作计算关节扭矩。它执行以下操作：
+    根据动作和当前状态计算每个关节的目标位置或速度。
+    根据控制策略（如位置控制、速度控制或扭矩控制）计算实现这些目标所需的扭矩。
+    返回计算出的扭矩，这些扭矩将被应用到机器人的关节上。
+    '''
     def _compute_torques(self, actions):
         """ Compute torques from actions.
             Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
@@ -498,6 +524,9 @@ class LeggedRobot(BaseTask):
                                                     gymtorch.unwrap_tensor(self.root_states_all),
                                                     gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
+    '''
+    这个方法通过给机器人一个随机的基础速度来模拟冲击，用于域随机化训练，增强机器人在不同情况下的鲁棒性。
+    '''
     def _push_robots(self):
         """ Random pushes the robots. Emulates an impulse by setting a randomized base velocity. 
         """
@@ -509,6 +538,9 @@ class LeggedRobot(BaseTask):
                 self.root_states_obj[_obj][:, 3:7] = self.base_init_state[3:7]
         self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states_all))
 
+    '''
+    实现了一种基于游戏的课程学习方法，根据机器人在环境中的行走距离来调整它们所处的地形难度，以此来逐步提高机器人在复杂地形上的表现。
+    '''
     def _update_terrain_curriculum(self, env_ids):
         """ Implements the game-inspired curriculum.
 
@@ -531,6 +563,9 @@ class LeggedRobot(BaseTask):
                                                    torch.clip(self.terrain_levels[env_ids], 0)) # (the minumum level is zero)
         self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
     
+    '''
+    根据机器人追踪速度的表现来调整指令的范围，是另一种课程学习策略，旨在逐步提高机器人对更复杂指令的响应能力。
+    '''
     def update_command_curriculum(self, env_ids):
         """ Implements a curriculum of increasing commands
 
@@ -725,6 +760,28 @@ class LeggedRobot(BaseTask):
         self.gym.add_triangle_mesh(self.sim, self.terrain.vertices.flatten(order='C'), self.terrain.triangles.flatten(order='C'), tm_params)   
         self.height_samples = torch.tensor(self.terrain.heightsamples).view(self.terrain.tot_rows, self.terrain.tot_cols).to(self.device)
 
+    '''
+    函数功能
+    1.加载机器人模型：从 URDF 文件中加载机器人的模型，并根据配置文件中的参数设置模型的属性。
+    2.创建多个环境：根据配置文件中的参数创建多个仿真环境，每个环境中包含一个机器人实例。
+    3.处理刚体属性：对机器人的刚体形状属性、自由度属性和刚体属性进行处理和修改，以适应特定的仿真需求。
+    4.设置机器人初始状态：为每个机器人设置初始位置、姿态、速度等。
+    5.存储机器人身体部位的索引：存储机器人身体不同部位的索引，便于后续的访问和操作。
+    函数步骤
+    1.加载机器人模型：
+    从配置文件中获取机器人模型的路径。
+    设置加载模型的选项，如固定关节、替换圆柱体为胶囊体等。
+    加载机器人模型，并获取模型的刚体名称、自由度名称等信息。
+    2.处理模型属性：
+    获取机器人模型的刚体形状属性、自由度属性和刚体属性。
+    根据需要对这些属性进行处理和修改，例如调整摩擦系数、关节限制等。
+    3.创建仿真环境：
+    根据配置文件中的参数创建多个仿真环境。
+    在每个环境中，创建机器人实例，并设置其初始位置和姿态。
+    对机器人模型的属性进行设置，并将机器人添加到环境中。
+    4.存储索引：
+    存储机器人身体不同部位的索引，例如脚部、需要惩罚接触的部位等。
+    '''
     def _create_envs(self):
         """ Creates environments:
              1. loads the robot URDF/MJCF asset,
