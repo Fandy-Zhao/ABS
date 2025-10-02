@@ -55,7 +55,7 @@ def train(args):
     
     # ============================== load data ==============================
     print("==============================loading data ==============================")
-    data_folder = "../depth_data/rec_cam/"
+    data_folder = "../logs/rec_cam/"
     all_test_folder = os.listdir(data_folder)
     all_test_folder.sort()
     print(all_test_folder)
