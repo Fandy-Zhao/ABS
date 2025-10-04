@@ -252,6 +252,7 @@ class LeggedRobotCfgPPO(BaseConfig):
 class LeggedRobotCfgPPOLagrangian(LeggedRobotCfgPPO):
     runner_class_name = 'OnPolicyRunnerCost'
     class algorithm(LeggedRobotCfgPPO.algorithm):
+        #代价函数的约束条件
         cost_value_loss_coef = 1.0
         cost_gamma = 0.99
         cost_lam = 0.97
